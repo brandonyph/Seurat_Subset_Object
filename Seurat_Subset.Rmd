@@ -1,0 +1,100 @@
+---
+title: "Seurat_DE"
+author: "BrandonYEO"
+date: "2/11/2022"
+output: 
+  md_document:
+    variant: gfm
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+suppressWarnings(library(Seurat))
+suppressWarnings(library(SeuratData))
+```
+
+```{r}
+pbmc <- suppressWarnings(LoadData("pbmc3k", type = "pbmc3k.final"))
+
+DimPlot(pbmc, reduction = "umap",label = TRUE)
+```
+
+```{r}
+# list options for groups to perform differential expression on
+levels(pbmc)
+## [1] "Naive CD4 T"  "Memory CD4 T" "CD14+ Mono"   "B"            "CD8 T"       
+## [6] "FCGR3A+ Mono" "NK"           "DC"           "Platelet"
+```
+
+
+
+
+#  Subseting based on the clustering
+
+you can subset on mulitiple data wihtin the seurat object
+
+*  Subset Seurat object based on identity class, also see ?SubsetData
+subset(x = pbmc, idents = "B cells")
+subset(x = pbmc, idents = c("CD4 T cells", "CD8 T cells"), invert = TRUE)
+
+*  Subset on the expression level of a gene/feature
+subset(x = pbmc, subset = MS4A1 > 3)
+
+*  Subset on a combination of criteria
+subset(x = pbmc, subset = MS4A1 > 3 & PC1 > 5)
+subset(x = pbmc, subset = MS4A1 > 3, idents = "B cells")
+
+*  Subset on a value in the object meta data
+subset(x = pbmc, subset = orig.ident == "Replicate1")
+
+*  Downsample the number of cells per identity class
+subset(x = pbmc, downsample = 100)
+
+```{r}
+CD14_pbmc <- subset(x = pbmc, idents = c("CD14+ Mono", "FCGR3A+ Mono"))
+
+monocyte.de.markers.small <- FindMarkers(CD14_pbmc, ident.1 = "CD14+ Mono", ident.2 = "FCGR3A+ Mono")
+```
+```{r}
+# Find differentially expressed features between CD14+ and FCGR3A+ Monocytes
+monocyte.de.markers <- FindMarkers(pbmc, ident.1 = "CD14+ Mono", ident.2 = "FCGR3A+ Mono")
+# view results
+head(monocyte.de.markers)
+```
+
+```{r}
+# Find differentially expressed features between CD14+ Monocytes and all other cells, only
+# search for positive markers
+monocyte.de.markers <- FindMarkers(pbmc, ident.1 = "CD14+ Mono", ident.2 = NULL, only.pos = TRUE)
+# view results
+head(monocyte.de.markers)
+```
+
+# Check for System Time (Speed of Execution)
+
+```{r}
+system.time(FindMarkers(pbmc, ident.1 = "CD14+ Mono", ident.2 = "FCGR3A+ Mono", max.cells.per.ident = 500))
+
+system.time(FindMarkers(CD14_pbmc, ident.1 = "CD14+ Mono", ident.2 = "FCGR3A+ Mono", max.cells.per.ident = 500))
+```
+```{r}
+system.time(FindMarkers(pbmc, ident.1 = "CD14+ Mono", ident.2 = "FCGR3A+ Mono", test.use = "DESeq2", max.cells.per.ident = 500))
+
+system.time(FindMarkers(CD14_pbmc, ident.1 = "CD14+ Mono", ident.2 = "FCGR3A+ Mono", test.use = "DESeq2", max.cells.per.ident = 500))
+```
+```{r}
+time1 <- system.time(FindMarkers(pbmc, ident.1 = "CD14+ Mono", ident.2 = "FCGR3A+ Mono", test.use = "DESeq2", max.cells.per.ident = 500))
+
+time2 <- system.time(FindMarkers(CD14_pbmc, ident.1 = "CD14+ Mono", ident.2 = "FCGR3A+ Mono", test.use = "DESeq2", max.cells.per.ident = 500))
+```
+
+```{r}
+speed_df <- c(time1[3],time2[3])
+names(speed_df) <- c("full","subset")
+
+barplot(speed_df)
+```
+
